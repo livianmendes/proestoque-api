@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { CategoriaController } from "../controllers/categoria.controller";
+import { autenticar } from "../middlewares/auth";
 
 const router = Router();
 const controller = new CategoriaController();
+
+router.use(autenticar);
 
 router.get("/", controller.listar.bind(controller));
 router.get("/:id", controller.buscarPorId.bind(controller));
