@@ -1,16 +1,15 @@
 import "dotenv/config";
 import { app } from "./app";
+import { config } from "./config";
 import { prisma } from "./prisma/client";
-
-const PORT = process.env.PORT ?? 3333;
 
 async function iniciar() {
   try {
     await prisma.$connect();
     console.log("Banco de dados conectado");
 
-    app.listen(PORT, () => {
-      console.log(`ProEstoque API rodando em http://localhost:${PORT}`);
+    app.listen(config.port, () => {
+      console.log(`ProEstoque API rodando em http://localhost:${config.port}`);
       console.log("Prisma Studio: npm run db:studio");
     });
   } catch (error) {
