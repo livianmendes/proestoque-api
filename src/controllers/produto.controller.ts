@@ -4,30 +4,6 @@ import { prisma } from "../prisma/client";
 
 const includeCategoria = { categoria: true } as const;
 
-function normalizarTipoMovimentacao(tipo: unknown) {
-  const valor = String(tipo ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-  if (valor !== "entrada" && valor !== "saida") {
-    throw new AppError("Tipo deve ser entrada ou saida");
-  }
-
-  return valor;
-}
-
-function validarQuantidadePositiva(quantidade: unknown) {
-  const valor = Number(quantidade);
-
-  if (!Number.isInteger(valor) || valor <= 0) {
-    throw new AppError("Quantidade deve ser um numero inteiro maior que zero");
-  }
-
-  return valor;
-}
-
 export class ProdutoController {
   async listar(req: Request, res: Response, next: NextFunction) {
     try {
@@ -186,77 +162,6 @@ export class ProdutoController {
       await prisma.produto.delete({ where: { id } });
 
       res.status(204).send();
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async registrarMovimentacao(req: Request, res: Response, next: NextFunction) {
-    try {
-      const id = String(req.params.id);
-      const { tipo, quantidade, observacao } = req.body;
-
-      const tipoNormalizado = normalizarTipoMovimentacao(tipo);
-      const quantidadeMovimentada = validarQuantidadePositiva(quantidade);
-
-      const resultado = await prisma.$transaction(async (tx) => {
-        const produto = await tx.produto.findUnique({ where: { id } });
-
-        if (!produto) {
-          throw new AppError("Produto nao encontrado", 404);
-        }
-
-        const delta =
-          tipoNormalizado === "entrada" ? quantidadeMovimentada : -quantidadeMovimentada;
-        const novaQuantidade = produto.quantidade + delta;
-
-        if (novaQuantidade < 0) {
-          throw new AppError("Quantidade insuficiente em estoque");
-        }
-
-        const movimentacao = await tx.movimentacao.create({
-          data: {
-            produtoId: id,
-            tipo: tipoNormalizado,
-            quantidade: quantidadeMovimentada,
-            observacao: observacao ? String(observacao) : null,
-          },
-        });
-
-        const produtoAtualizado = await tx.produto.update({
-          where: { id },
-          data: {
-            quantidade: novaQuantidade,
-            ultimaMovimentacao: new Date(),
-          },
-          include: includeCategoria,
-        });
-
-        return { movimentacao, produto: produtoAtualizado };
-      });
-
-      res.status(201).json(resultado);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async listarMovimentacoes(req: Request, res: Response, next: NextFunction) {
-    try {
-      const id = String(req.params.id);
-
-      const produto = await prisma.produto.findUnique({ where: { id } });
-
-      if (!produto) {
-        throw new AppError("Produto nao encontrado", 404);
-      }
-
-      const movimentacoes = await prisma.movimentacao.findMany({
-        where: { produtoId: id },
-        orderBy: { data: "desc" },
-      });
-
-      res.json(movimentacoes);
     } catch (error) {
       next(error);
     }
